@@ -373,7 +373,7 @@ xtf_urls = [
         "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/ZH/kataster_belasteter_standorte_v1_5_ZH_lv95.zip"
       }
 ]
-#wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
+wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
 
 st.sidebar.header("Select Data Sources")
 
