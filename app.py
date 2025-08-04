@@ -388,7 +388,7 @@ if 'combined_df' not in st.session_state:
 # Create checkboxes for XTF sources
 selected_xtf_sources = []
 for source in xtf_urls:
-    checkbox_state = st.sidebar.checkbox(f"KBS: {source['out_dir'].capitalize()}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
+    checkbox_state = st.sidebar.checkbox(f"KBS: {source['out_dir']}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
     if checkbox_state:
         selected_xtf_sources.append(source)
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
