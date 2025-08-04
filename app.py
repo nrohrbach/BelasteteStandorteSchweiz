@@ -319,7 +319,7 @@ if not st.session_state['combined_df'].empty:
     st.metric(label="Total Objects", value=total_objects)
 
     st.subheader("Objects per Source")
-    source_counts = st.session_state['combined_df']['quelle'].value_counts()
+    source_counts = st.session_state['combined_df']['Standorttyp'].value_counts()
     st.write(source_counts)
 
 
