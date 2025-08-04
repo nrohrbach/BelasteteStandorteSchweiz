@@ -300,7 +300,8 @@ if fetch_button:
     with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
             st.session_state['selected_xtf_sources'],
-            st.session_state['selected_wfs_sources']
+            st.session_state['selected_wfs_sources'],
+            wfs
             )
     if not st.session_state['combined_df'].empty:
         st.success("Data fetching complete!")
