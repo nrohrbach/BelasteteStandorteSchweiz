@@ -324,21 +324,32 @@ if not st.session_state['combined_df'].empty:
 
     # Integrate the interactive map visualization
     st.header("Interactive Map")
-    # Create a GeoDataFrame from the combined_df
-    # Convert the dictionary representation of geometry to Point objects, handling potential None or invalid entries
-    geometry = st.session_state['combined_df']['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' else None)
 
-    # Create the GeoDataFrame, dropping rows where geometry could not be created
-    gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
+    # Create GeoDataFrame for mapping
+    geometry = combined_df['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' else None)
+    gdf_combined = gpd.GeoDataFrame(combined_df, geometry=geometry).dropna(subset=['geometry'])
 
-    # Set the coordinate reference system (CRS) to match the data (EPSG:2056)
-    gdf_combined.set_crs(epsg=2056, inplace=True)
+    # Set CRS for XTF data (assuming EPSG:2056) and reproject to WGS84 for WFS and mapping
+    # If WFS data is already in WGS84, set CRS directly
+    if not gdf_combined.empty:
+         # Separate XTF and WFS dataframes to handle CRS
+        gdf_xtf = gdf_combined[gdf_combined['quelle'] != 'wfs'].set_crs(epsg=2056, allow_override=True)
+        gdf_wfs = gdf_combined[gdf_combined['quelle'] == 'wfs'].set_crs(epsg=4326, allow_override=True) # WFS assumed to be WGS84
 
-    # Display the GeoDataFrame interactively
-    # Use a placeholder to render the map
-    map_placeholder = st.empty()
-    with map_placeholder:
-         st.write(gdf_combined.explore())
+        # Reproject XTF to WGS84
+        gdf_xtf_wgs84 = gdf_xtf.to_crs(epsg=4326)
+
+        # Combine reprojected XTF and WFS data
+        gdf_combined_wgs84 = pd.concat([gdf_xtf_wgs84, gdf_wfs], ignore_index=True)
+
+        st.subheader("Interaktive Karte")
+        # Ensure the GeoDataFrame is not empty before creating the map
+        if not gdf_combined_wgs84.empty:
+            m = create_folium_map(gdf_combined_wgs84)
+            from streamlit_folium import folium_static
+            folium_static(m)
+        else:
+            st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
 
 
     # Add a download button for the combined data
