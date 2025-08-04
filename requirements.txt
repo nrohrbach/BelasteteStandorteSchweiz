@@ -1,0 +1,10 @@
+streamlit
+pandas
+geopandas
+shapely
+lxml
+requests
+owslib
+folium
+matplotlib
+mapclassify
