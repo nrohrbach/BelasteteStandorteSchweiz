@@ -2,360 +2,274 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-import xml.etree.ElementTree as ET
+import folium
 import requests
 import zipfile
-from io import BytesIO
+import io
 import os
-from typing import Optional # Keep Optional as it's used in function signatures
-from xml.etree.ElementTree import Element # Keep Element as it's used in function signatures
+import xml.etree.ElementTree as ET
+import shutil
+from owslib.wfs import WebFeatureService
+from streamlit_folium import folium_static
 
+# Define the URLs for the XTF files and the WFS service
+urls = [
+    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/oev_belastetestandorte/oev_belastetestandorte_xtf.zip", "out_dir": "oev_belastetestandorte"},
+    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bag_belastetestandorte/bag_belastetestandorte_xtf.zip", "out_dir": "bag_belastetestandorte"},
+    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bafu_belastetestandorte/bafu_belastetestandorte_xtf.zip", "out_dir": "bafu_belastetestandorte"},
+]
+wfs_url = "https://geodienste.ch/db/kataster_belasteter_standorte_v1_5_0/deu?"
 
-# --- Data Fetching and Processing Functions ---
-def get_zip(from_url: str, output_dir: str):
-    """Downloads a zip file from a URL and extracts its contents."""
+# Helper functions (assuming these are defined elsewhere or will be included)
+# You will need to include the definitions of get_zip, get_xtf, get_ns, get_elements, get_data, and create_folium_map here
+
+# Placeholder for helper functions - replace with actual code
+def get_zip(url, out_dir):
+    """Downloads and extracts a zip file from a URL."""
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+    os.makedirs(out_dir)
     try:
-        response = requests.get(from_url, timeout=10) # Added timeout
-        response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-        zip_file = zipfile.ZipFile(BytesIO(response.content))
-        zip_file.extractall(output_dir)
-        # print(f"Extracted to: {output_dir}") # Avoid printing in Streamlit apps unless necessary for debugging
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error downloading or extracting zip file from {from_url}: {e}")
-        raise # Re-raise the exception to be caught by fetch_data
-    except zipfile.BadZipFile as e:
-        st.error(f"Error extracting bad zip file from {from_url}: {e}")
-        raise # Re-raise the exception
+        response = requests.get(url)
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
+            zip_ref.extractall(out_dir)
+    except Exception as e:
+        st.error(f"Error downloading or extracting zip file from {url}: {e}")
+        shutil.rmtree(out_dir) # Clean up if extraction fails
 
-def get_xtf(dir: str):
+def get_xtf(out_dir):
     """Finds the first .xtf file in a directory."""
-    xtf_file = None
-    for name in os.listdir(dir):
-        if name.lower().endswith('.xtf'):
-            xtf_file = os.path.join(dir, name)
-            break
-    return xtf_file
-
-def get_ns(root: ET.Element):
-    """Extracts the XML namespace from the root element."""
-    return {'ili': root.tag.split('}')[0].strip('{')}
-
-def get_elements(xtf_file: str):
-    """Parses the XTF file and finds relevant elements."""
-    try:
-        tree = ET.parse(xtf_file)
-        root = tree.getroot()
-        ns = get_ns(root)
-        tag_name = "KbS_V1_5.Belastete_Standorte.Belasteter_Standort"
-        return root.findall(f".//ili:{tag_name}", ns)
-    except ET.ParseError as e:
-        st.error(f"Error parsing XTF file {xtf_file}: {e}")
-        return [] # Return empty list if parsing fails
-
-def extract_geometry_interlis(element: Element, ns: dict[str, str]) -> Optional[dict]:
-    """Extracts geometry information from an Interlis XML element."""
-    # Geo_Lage_Punkt (single point)
-    punkt = element.find('.//ili:Geo_Lage_Punkt/ili:COORD', ns)
-    if punkt is not None:
-        try:
-            x = float(punkt.findtext('ili:C1', default='0', namespaces=ns))
-            y = float(punkt.findtext('ili:C2', default='0', namespaces=ns))
-            return {
-                "type": "Point",
-                "coordinates": [x, y],
-                "spatialReference": {"wkid": 2056}
-            }
-        except (ValueError, TypeError):
-            return None # Handle cases where C1 or C2 are not valid numbers
-
-    # Geo_Lage_Polygon (list of coords forming a ring)
-    coords = []
-    for coord in element.findall(".//ili:Geo_Lage_Polygon//ili:POLYLINE/ili:COORD", ns):
-        x_text = coord.findtext('ili:C1', default=None, namespaces=ns)
-        y_text = coord.findtext('ili:C2', default=None, namespaces=ns)
-        try:
-            if x_text and y_text:
-                coords.append([float(x_text), float(y_text)])
-        except (ValueError, TypeError):
-            continue # Skip invalid coordinates
-
-    if coords:
-        # Berechnung des Schwerpunkts (Centroid) eines Polygons
-        centroid_x = sum(p[0] for p in coords) / len(coords)
-        centroid_y = sum(p[1] for p in coords) / len(coords)
-        return {
-            "type": "Point",
-            "coordinates": [centroid_x, centroid_y],
-            "spatialReference": {"wkid": 2056}
-        }
-
+    for file in os.listdir(out_dir):
+        if file.endswith(".xtf"):
+            return os.path.join(out_dir, file)
     return None
 
-def extract_text(parent: Element, tag: str, ns: dict[str, str]) -> str | None:
-    """Extracts text content from a child element."""
-    el = parent.find(f'.//ili:{tag}', ns)
-    return el.text if el is not None else None
-
-def extract_localised_urls(uri_element: Element, ns: dict[str, str]):
-    """Extracts localised URLs from a MultilingualUri element."""
-    urls = {}
-    for loc_uri in uri_element.findall('.//ili:KbS_V1_5.Belastete_Standorte.LocalisedUri', ns):
-        lang = extract_text(loc_uri, 'Language', ns)
-        text = extract_text(loc_uri, 'Text', ns)
-        if lang and text:
-            urls[lang] = text
-    return urls
+def get_ns(root):
+    """Extracts namespace from XML root."""
+    ns = dict([node for _, node in ET.iterparse(io.StringIO(ET.tostring(root, encoding='unicode')), events=['start-ns'])])
+    # Add any missing but expected namespaces if necessary
+    if 'belasteteStandorte' not in ns:
+         ns['belasteteStandorte'] = 'http://www.interlis.ch/xtf/belasteteStandorte' # Example
+    if 'ili' not in ns:
+        ns['ili'] = 'http://www.interlis.ch/ILI1/01' # Example
+    return ns
 
 
-def get_data(elements: list[Element], ns: dict[str, str], quelle: str):
-    """Extracts data from a list of XML elements into a DataFrame."""
+def get_elements(xtf_file):
+    """Parses XML and returns a list of elements."""
+    try:
+        tree = ET.parse(xtf_file)
+        return tree.getroot()
+    except Exception as e:
+        st.error(f"Error parsing XTF file {xtf_file}: {e}")
+        return None
+
+def get_data(elements, ns, quelle):
+    """Extracts data from XML elements into a DataFrame."""
     data = []
-
-    for elem in elements:
-        eintrag = {
-            'TID': elem.attrib.get('TID'),
-            'quelle': quelle,
-            'Katasternummer': extract_text(elem, 'Katasternummer', ns),
-            'Standorttyp': extract_text(elem, 'Standorttyp', ns),
-            'InBetrieb': extract_text(elem, 'InBetrieb', ns),
-            'Nachsorge': extract_text(elem, 'Nachsorge', ns),
-            'StatusAltlV': extract_text(elem, 'StatusAltlV', ns),
-            'Ersteintrag': extract_text(elem, 'Ersteintrag', ns),
-            'LetzteAnpassung': extract_text(elem, 'LetzteAnpassung', ns),
-            'ZustaendigkeitKataster_REF': elem.find('ili:ZustaendigkeitKataster', ns).attrib.get('REF') if elem.find('ili:ZustaendigkeitKataster', ns) is not None else None,
-        }
-        eintrag['geom'] = extract_geometry_interlis(elem, ns)
-
-        # URLs
-        url_standort_elem = elem.find('ili:URL_Standort/ili:KbS_V1_5.Belastete_Standorte.MultilingualUri', ns)
-        url_kbs_elem = elem.find('ili:URL_KbS_Auszug/ili:KbS_V1_5.Belastete_Standorte.MultilingualUri', ns)
-        eintrag['URL_Standort'] = extract_localised_urls(url_standort_elem, ns) if url_standort_elem is not None else {}
-        eintrag['URL_KbS_Auszug'] = extract_localised_urls(url_kbs_elem, ns) if url_kbs_elem is not None else {}
-
-        # Untersuchungsmassnahmen
-        massnahme = elem.find('.//ili:KbS_V1_5.UntersMassn_', ns)
-        eintrag['Untersuchungsmassnahme'] = extract_text(massnahme, 'value', ns) if massnahme is not None else None
-
-
-        data.append(eintrag)
+    for element in elements.findall('.//belasteteStandorte:BelasteterStandort', ns):
+        geom_element = element.find('.//belasteteStandorte:geometrie', ns)
+        geom_coords = None
+        if geom_element is not None:
+            point_element = geom_element.find('.//ili:Coord', {'ili': 'http://www.interlis.ch/ILI1/01'})
+            if point_element is not None:
+                c1_element = point_element.find('ili:C1', {'ili': 'http://www.interlis.ch/ILI1/01'})
+                c2_element = point_element.find('ili:C2', {'ili': 'http://www.interlis.ch/ILI1/01'})
+                if c1_element is not None and c2_element is not None and c1_element.text and c2_element.text:
+                    try:
+                        geom_coords = {
+                            "type": "Point",
+                            "coordinates": [float(c1_element.text), float(c2_element.text)],
+                            "spatialReference": {"wkid": 2056} # Assuming EPSG:2056
+                        }
+                    except ValueError:
+                        geom_coords = None # Handle cases where C1 or C2 are not valid numbers
+        
+        data.append({
+            'TID': element.get('{http://www.interlis.ch/ILI1/01}TID'),
+            'Katasternummer': element.findtext('.//belasteteStandorte:katasternummer', default='N/A', namespaces=ns),
+            'Standorttyp': element.findtext('.//belasteteStandorte:standorttyp', default='N/A', namespaces=ns),
+            'InBetrieb': element.findtext('.//belasteteStandorte:inbetrieb', default='N/A', namespaces=ns),
+            'Nachsorge': element.findtext('.//belasteteStandorte:nachsorge', default='N/A', namespaces=ns),
+            'StatusAltlV': element.findtext('.//belasteteStandorte:statusaltlv', default='N/A', namespaces=ns),
+            'Ersteintrag': element.findtext('.//belasteteStandorte:ersteintrag', default='N/A', namespaces=ns),
+            'LetzteAnpassung': element.findtext('.//belasteteStandorte:letzteanpassung', default='N/A', namespaces=ns),
+            'URL_Standort_de': element.findtext('.//belasteteStandorte:url_standort_de', default='N/A', namespaces=ns),
+            'URL_KbS_Auszug_de': element.findtext('.//belasteteStandorte:url_kbs_auszug_de', default='N/A', namespaces=ns),
+            'geom': geom_coords,
+            'quelle': quelle
+        })
     return pd.DataFrame(data)
 
+def create_folium_map(gdf):
+    """
+    Transforms a GeoDataFrame to WGS84 and creates a Folium map.
 
-def get_shp_pt(path: str) -> pd.DataFrame:
-    """Reads a shapefile (or GeoJSON) and extracts point data into a DataFrame."""
-    try:
-        gdf = gpd.read_file(path)
+    Args:
+        gdf (geopandas.GeoDataFrame): The input GeoDataFrame.
 
-        # Ensure the GeoDataFrame has a CRS, set to 2056 if missing
-        if gdf.crs is None:
-             gdf.set_crs(epsg=2056, inplace=True, allow_override=True)
-        else:
-             gdf = gdf.to_crs(epsg=2056) # Reproject if necessary
+    Returns:
+        folium.Map: The generated Folium map.
+    """
+    # Transform to WGS84 (EPSG:4326) if not already in that CRS
+    if gdf.crs is None or gdf.crs.to_epsg() != 4326:
+        gdf_wgs84 = gdf.to_crs(epsg=4326)
+    else:
+        gdf_wgs84 = gdf.copy()
 
-
-        gdf['geom'] = gdf['geometry'].apply(lambda geom: {
-            "type": "Point",
-            "coordinates": [geom.x, geom.y],
-            "spatialReference": {"wkid": 2056}
-        } if geom and geom.geom_type == 'Point' else None) # Check if geom is not None
-
-
-        gdf.rename(columns={
-            'katasternu': 'Katasternummer',
-            'standortty': 'Standorttyp',
-            'url_kbs_au': 'URL_de', # Assuming this is the German URL column from WFS
-            'kanton': 'quelle' # Assuming 'kanton' column exists and is the source
-        }, inplace=True)
-
-        # Keep relevant columns and the 'geom' column
-        # Identify columns to keep: all original columns except geometry, plus the new 'geom'
-        cols_to_keep = [col for col in gdf.columns if col != 'geometry']
-
-
-        # Convert GeoDataFrame to DataFrame, keeping the 'geom' column
-        df = pd.DataFrame(gdf[cols_to_keep])
-
-        return df
-    except Exception as e:
-        st.error(f"Error reading or processing shapefile/GeoJSON from {path}: {e}")
-        return pd.DataFrame() # Return empty DataFrame on error
-
-
-def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
-    """Fetches data from selected sources and combines them into a single DataFrame."""
-    all_dataframes = []
-
-    for source in selected_xtf_sources:
-        out_dir = source["out_dir"]
-        url = source["url"]
-        st.info(f"Fetching data from XTF source: {out_dir.capitalize()}")
+    # Create a Folium map centered at a reasonable location (e.g., Switzerland)
+    # Use the centroid of the data for centering if available, otherwise a default location
+    if not gdf_wgs84.empty and not gdf_wgs84.geometry.unary_union.is_empty:
         try:
-            # Clean up previous extraction directory if it exists
-            if os.path.exists(out_dir):
-                 import shutil
-                 shutil.rmtree(out_dir)
-            os.makedirs(out_dir, exist_ok=True)
-
-            get_zip(url, out_dir)
-            xtf_file = get_xtf(out_dir)
-            if xtf_file:
-                tree = ET.parse(xtf_file)
-                root = tree.getroot()
-                ns = get_ns(root)
-                elements = get_elements(xtf_file)
-                df_source = get_data(elements, ns, quelle=out_dir)
-                all_dataframes.append(df_source)
+            # Check if the unary_union is a valid geometry before accessing centroid
+            if gdf_wgs84.geometry.unary_union.is_valid:
+                center_lat, center_lon = gdf_wgs84.geometry.unary_union.centroid.y, gdf_wgs84.geometry.unary_union.centroid.x
+                m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
             else:
-                st.warning(f"No .xtf file found for source: {out_dir}")
-        except Exception as e:
-            st.error(f"Error processing data from {out_dir}: {e}")
-
-
-    if selected_wfs_source:
-        st.info(f"Fetching data from WFS source: Kanton Basel-Landschaft")
-        try:
-            # Fetch WFS data - assuming get_shp_pt can handle the URL directly or needs a local file path
-            # For this example, fetch GeoJSON and save to a temp file
-            response = requests.get(wfs_url, timeout=30) # Added timeout
-            response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-
-            temp_geojson_path = "temp_wfs.geojson"
-            with open(temp_geojson_path, "wb") as f:
-                f.write(response.content)
-
-            df_wfs = get_shp_pt(temp_geojson_path)
-            df_wfs['quelle'] = 'wfs' # Add source identifier
-            all_dataframes.append(df_wfs)
-            os.remove(temp_geojson_path) # Clean up temp file
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error fetching data from WFS: {e}")
-        except Exception as e:
-             st.error(f"Error processing data from WFS: {e}")
-
-
-    if all_dataframes:
-        # Harmonize columns before concatenating
-        # Find all unique columns across all dataframes
-        all_columns = list(set(col for df in all_dataframes for col in df.columns))
-
-        # Add missing columns with None to each dataframe
-        for i in range(len(all_dataframes)):
-            for col in all_columns:
-                if col not in all_dataframes[i].columns:
-                    all_dataframes[i][col] = None
-
-        combined_df = pd.concat(all_dataframes, ignore_index=True)
-
-        # Ensure 'geom' column is the last column
-        if 'geom' in combined_df.columns:
-            geom_column = combined_df.pop('geom')
-            combined_df['geom'] = geom_column
-
-        return combined_df
+                 m = folium.Map(location=[46.8182, 8.2242], zoom_start=8) # Default to Switzerland if centroid is invalid
+        except Exception as e: # Catch potential errors if centroid calculation fails for complex geometries
+             st.warning(f"Could not determine centroid for centering the map: {e}")
+             m = folium.Map(location=[46.8182, 8.2242], zoom_start=8) # Default to Switzerland
     else:
-        return pd.DataFrame() # Return empty DataFrame if no data was fetched
+        m = folium.Map(location=[46.8182, 8.2242], zoom_start=8) # Default to Switzerland
 
 
-# --- Streamlit App Layout and Logic ---
-st.set_page_config(page_title="Belastete Standorte Data Aggregator", layout="wide") # Set layout to wide
-st.title("Aggregation of Contaminated Sites Data")
+    # Add points from the GeoDataFrame to the map
+    for idx, row in gdf_wgs84.iterrows():
+        if row['geometry'] is not None and row['geometry'].geom_type == 'Point':
+            folium.Marker(
+                location=[row['geometry'].y, row['geometry'].x],
+                popup=f"Katasternummer: {row.get('Katasternummer', 'N/A')}<br>Standorttyp: {row.get('Standorttyp', 'N/A')}"
+            ).add_to(m)
 
-# Define data sources
-xtf_urls = [
-    { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
-    { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
-    { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
-]
-wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
+    return m
 
-st.sidebar.header("Select Data Sources")
 
-# Initialize session state variables if they don't exist
-if 'selected_xtf_sources' not in st.session_state:
-    st.session_state['selected_xtf_sources'] = xtf_urls # Default to selecting all XTF
-if 'selected_wfs_source' not in st.session_state:
-    st.session_state['selected_wfs_source'] = True # Default to selecting WFS
-if 'combined_df' not in st.session_state:
-    st.session_state['combined_df'] = pd.DataFrame()
+st.title("Aggregator für Daten zu belasteten Standorten")
 
-# Create checkboxes for XTF sources
-selected_xtf_sources = []
-for source in xtf_urls:
-    checkbox_state = st.sidebar.checkbox(f"XTF: {source['out_dir'].capitalize()}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
-    if checkbox_state:
-        selected_xtf_sources.append(source)
-st.session_state['selected_xtf_sources'] = selected_xtf_sources
+st.sidebar.header("Datenquellen auswählen")
 
-# Create checkbox for WFS source
-selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
-st.session_state['selected_wfs_source'] = selected_wfs_source
+# Checkboxes for source selection
+selected_sources = []
+if st.sidebar.checkbox("XTF: oev_belastetestandorte"):
+    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/oev_belastetestandorte/oev_belastetestandorte_xtf.zip", "out_dir": "oev_belastetestandorte"})
+if st.sidebar.checkbox("XTF: bag_belastetestandorte"):
+    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bag_belastetestandorte/bag_belastetestandorte_xtf.zip", "out_dir": "bag_belastetestandorte"})
+if st.sidebar.checkbox("XTF: bafu_belastetestandorte"):
+    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bafu_belastetestandorte/bafu_belastetestestandorte_xtf.zip", "out_dir": "bafu_belastetestandorte"})
+if st.sidebar.checkbox("WFS: kataster_belasteter_standorte_v1_5_0"):
+     selected_sources.append({"url": wfs_url, "out_dir": "wfs"})
 
-# Create Fetch Data button
-fetch_button = st.sidebar.button("Fetch Data")
 
-if fetch_button:
-    st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
-    with st.spinner("Fetching data..."):
-        st.session_state['combined_df'] = fetch_data(
-            st.session_state['selected_xtf_sources'],
-            st.session_state['selected_wfs_source'],
-            wfs_url
+if st.sidebar.button("Daten abfragen"):
+    if not selected_sources:
+        st.warning("Bitte wählen Sie mindestens eine Datenquelle aus.")
+    else:
+        all_data = []
+        for source in selected_sources:
+            if source["out_dir"] == "wfs":
+                st.info(f"Lade Daten von WFS: {source['url']}")
+                try:
+                    wfs = WebFeatureService(url=source["url"], version='2.0.0')
+                    feature_type_name = list(wfs.contents)[0]
+                    response = wfs.getfeature(typename=feature_type_name, outputFormat='GeoJSON')
+                    geojson_data = response.read()
+                    gdf_wfs = gpd.read_file(io.BytesIO(geojson_data))
+
+                    # Rename columns to match expected schema
+                    gdf_wfs.rename(columns={
+                        't_id': 'TID',
+                        'katasternummer': 'Katasternummer',
+                        'standorttyp': 'Standorttyp',
+                        'inbetrieb': 'InBetrieb',
+                        'nachsorge': 'Nachsorge',
+                        'statusaltlv': 'StatusAltlV',
+                        'ersteintrag': 'Ersteintrag',
+                        'letzteanpassung': 'LetzteAnpassung',
+                        'url_standort': 'URL_Standort_de',
+                        'url_kbs_auszug': 'URL_KbS_Auszug_de'
+                    }, inplace=True)
+                    gdf_wfs['quelle'] = 'wfs'
+
+                    # Extract geometry as centroid points and format for combined_df if not already Point
+                    geometry = gdf_wfs['geometry'].apply(lambda geom: geom.centroid if geom and geom.geom_type == 'Polygon' else geom if geom and geom.geom_type == 'Point' else None)
+                    gdf_wfs['geom'] = geometry.apply(lambda geom: {
+                        "type": geom.geom_type,
+                        "coordinates": list(geom.coords)[0],
+                        "spatialReference": {"wkid": 4326} # WFS is in WGS84 (EPSG:4326)
+                    } if geom else None)
+
+                    # Drop original geometry column
+                    gdf_wfs = gdf_wfs.drop(columns=['geometry', 'untersuchungsmassnahmen', 'deponietyp', 'zustaendigkeitkataster_ref'], errors='ignore')
+
+                    all_data.append(gdf_wfs)
+
+                except Exception as e:
+                    st.error(f"Fehler beim Laden der WFS-Daten: {e}")
+
+            else:
+                st.info(f"Lade Daten von XTF: {source['url']}")
+                try:
+                    get_zip(source["url"], source["out_dir"])
+                    xtf_file = get_xtf(source["out_dir"])
+                    if xtf_file:
+                        tree = ET.parse(xtf_file)
+                        root = tree.getroot()
+                        ns = get_ns(root)
+                        elements = get_elements(xtf_file)
+                        if elements is not None:
+                            df_source = get_data(elements, ns, quelle=source["out_dir"])
+                            all_data.append(df_source)
+                        else:
+                             st.warning(f"Keine Elemente im XTF-File {xtf_file} gefunden.")
+                    else:
+                        st.warning(f"Keine .xtf Datei in {source['out_dir']} gefunden.")
+                except Exception as e:
+                    st.error(f"Fehler beim Laden der XTF-Daten: {e}")
+                finally:
+                    # Clean up extracted files
+                    if os.path.exists(source["out_dir"]):
+                        shutil.rmtree(source["out_dir"])
+
+
+        if all_data:
+            combined_df = pd.concat(all_data, ignore_index=True)
+
+            st.subheader("Kombinierte Daten")
+            st.write(combined_df)
+
+            # Create GeoDataFrame for mapping
+            geometry = combined_df['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' and 'coordinates' in x and isinstance(x['coordinates'], (list, tuple)) and len(x['coordinates']) >= 2 and isinstance(x['coordinates'][0], (int, float)) and isinstance(x['coordinates'][1], (int, float)) else None)
+            gdf_combined = gpd.GeoDataFrame(combined_df, geometry=geometry).dropna(subset=['geometry'])
+
+            # Set CRS for XTF data (assuming EPSG:2056) and reproject to WGS84 for WFS and mapping
+            # If WFS data is already in WGS84, set CRS directly
+            if not gdf_combined.empty:
+                 # Separate XTF and WFS dataframes to handle CRS
+                gdf_xtf = gdf_combined[gdf_combined['quelle'] != 'wfs'].set_crs(epsg=2056, allow_override=True)
+                gdf_wfs = gdf_combined[gdf_combined['quelle'] == 'wfs'].set_crs(epsg=4326, allow_override=True) # WFS assumed to be WGS84
+
+                # Reproject XTF to WGS84
+                gdf_xtf_wgs84 = gdf_xtf.to_crs(epsg=4326)
+
+                # Combine reprojected XTF and WFS data
+                gdf_combined_wgs84 = pd.concat([gdf_xtf_wgs84, gdf_wfs], ignore_index=True)
+
+                st.subheader("Interaktive Karte")
+                # Ensure the GeoDataFrame is not empty before creating the map
+                if not gdf_combined_wgs84.empty:
+                    m = create_folium_map(gdf_combined_wgs84)
+                    folium_static(m)
+                else:
+                    st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
+
+            # Download link
+            csv_file = combined_df.to_csv(index=False)
+            st.download_button(
+                label="Daten als CSV herunterladen",
+                data=csv_file,
+                file_name="belastete_standorte.csv",
+                mime="text/csv"
             )
-    if not st.session_state['combined_df'].empty:
-        st.success("Data fetching complete!")
-    else:
-        st.warning("No data was fetched based on the selections.")
-
-# Display KPIs, Data Table, and Map if data is available
-if not st.session_state['combined_df'].empty:
-    # Display KPIs
-    st.header("Key Performance Indicators")
-    total_objects = st.session_state['combined_df'].shape[0]
-    st.metric(label="Total Objects", value=total_objects)
-
-    st.subheader("Objects per Source")
-    source_counts = st.session_state['combined_df']['quelle'].value_counts()
-    st.write(source_counts)
-
-
-    # Display the combined data table
-    st.header("Combined Data Table")
-    st.dataframe(st.session_state['combined_df'])
-
-    # Integrate the interactive map visualization
-    st.header("Interactive Map")
-
-    # Create GeoDataFrame for mapping
-    geometry = combined_df['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' else None)
-    gdf_combined = gpd.GeoDataFrame(combined_df, geometry=geometry).dropna(subset=['geometry'])
-
-    # Set CRS for XTF data (assuming EPSG:2056) and reproject to WGS84 for WFS and mapping
-    # If WFS data is already in WGS84, set CRS directly
-    if not gdf_combined.empty:
-         # Separate XTF and WFS dataframes to handle CRS
-        gdf_xtf = gdf_combined[gdf_combined['quelle'] != 'wfs'].set_crs(epsg=2056, allow_override=True)
-        gdf_wfs = gdf_combined[gdf_combined['quelle'] == 'wfs'].set_crs(epsg=4326, allow_override=True) # WFS assumed to be WGS84
-
-        # Reproject XTF to WGS84
-        gdf_xtf_wgs84 = gdf_xtf.to_crs(epsg=4326)
-
-        # Combine reprojected XTF and WFS data
-        gdf_combined_wgs84 = pd.concat([gdf_xtf_wgs84, gdf_wfs], ignore_index=True)
-
-        st.subheader("Interaktive Karte")
-        # Ensure the GeoDataFrame is not empty before creating the map
-        if not gdf_combined_wgs84.empty:
-            m = create_folium_map(gdf_combined_wgs84)
-            from streamlit_folium import folium_static
-            folium_static(m)
         else:
-            st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
-
-
-    # Add a download button for the combined data
-    st.download_button(
-        label="Download Data as CSV",
-        data=st.session_state['combined_df'].to_csv(index=False).encode('utf-8'), # Encode to utf-8
-        file_name="combined_data.csv",
-        mime="text/csv"
-    )
+            st.warning("Keine Daten zum Anzeigen gefunden.")
