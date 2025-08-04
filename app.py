@@ -269,9 +269,9 @@ st.title("Datenabfrage Kataster der belasteten Standorte")
 
 # Define data sources
 xtf_urls = [
-    { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
-    { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
-    { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
+    { "out_dir": 'Zivilflugplaetze', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
+    { "out_dir": 'Militaer', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
+    { "out_dir": 'oeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
 ]
 
 st.sidebar.header("Datenquelle auswählen")
@@ -300,7 +300,7 @@ if fetch_button:
     with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
             st.session_state['selected_xtf_sources'],
-            st.session_state['selected_wfs_sources'],
+            st.session_state['selected_wfs_source'],
             wfs_url
             )
     if not st.session_state['combined_df'].empty:
@@ -314,20 +314,18 @@ if not st.session_state['combined_df'].empty:
     st.header("Anzahl Objekte")
     total_objects = st.session_state['combined_df'].shape[0]
     st.metric(label="Anzahl Objekte", value=total_objects)
-    
+
     # Display the combined data table
     st.header("Tabellenansicht")
     st.dataframe(st.session_state['combined_df'])
 
-    
+
 
 
     # Add a download button for the combined data
     st.download_button(
-        label="Daten als CSV herunterladen",
+        label="Download Data as CSV",
         data=st.session_state['combined_df'].to_csv(index=False).encode('utf-8'), # Encode to utf-8
         file_name="combined_data.csv",
         mime="text/csv"
     )
-
-
