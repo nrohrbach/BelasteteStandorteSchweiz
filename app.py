@@ -269,9 +269,9 @@ st.title("Datenabfrage Kataster der belasteten Standorte")
 
 # Define data sources
 xtf_urls = [
-    { "out_dir": 'Zivilflugplaetze', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
-    { "out_dir": 'Militaer', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
-    { "out_dir": 'oeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
+    { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
+    { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
+    { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
 ]
 
 st.sidebar.header("Datenquelle auswählen")
