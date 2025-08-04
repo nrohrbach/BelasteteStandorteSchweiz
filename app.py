@@ -301,7 +301,7 @@ if fetch_button:
         st.session_state['combined_df'] = fetch_data(
             st.session_state['selected_xtf_sources'],
             st.session_state['selected_wfs_sources'],
-            wfs
+            wfs_url
             )
     if not st.session_state['combined_df'].empty:
         st.success("Data fetching complete!")
