@@ -9,3 +9,4 @@ folium
 matplotlib
 mapclassify
 streamlit-folium
+plotly>=5.0.0
