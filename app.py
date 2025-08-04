@@ -272,7 +272,106 @@ xtf_urls = [
     { "out_dir": 'Zivilflugplaetze', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
     { "out_dir": 'Militaer', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
     { "out_dir": 'OeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' },
-    { "out_dir": 'AG', "url": 'https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/AG/kataster_belasteter_standorte_v1_5_AG_lv95.zip' }
+    {
+        "out_dir": "AG",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/AG/kataster_belasteter_standorte_v1_5_AG_lv95.zip"
+      },
+      {
+        "out_dir": "AI",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/AI/kataster_belasteter_standorte_v1_5_AI_lv95.zip"
+      },
+      {
+        "out_dir": "AR",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/AR/kataster_belasteter_standorte_v1_5_AR_lv95.zip"
+      },
+      {
+        "out_dir": "BE",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/BE/kataster_belasteter_standorte_v1_5_BE_lv95.zip"
+      },
+      {
+        "out_dir": "BL",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/BL/kataster_belasteter_standorte_v1_5_BL_lv95.zip"
+      },
+      {
+        "out_dir": "BS",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/BS/kataster_belasteter_standorte_v1_5_BS_lv95.zip"
+      },
+      {
+        "out_dir": "FR",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/FR/kataster_belasteter_standorte_v1_5_FR_lv95.zip"
+      },
+      {
+        "out_dir": "GE",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/GE/kataster_belasteter_standorte_v1_5_GE_lv95.zip"
+      },
+      {
+        "out_dir": "GR",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/GR/kataster_belasteter_standorte_v1_5_GR_lv95.zip"
+      },
+      {
+        "out_dir": "JU",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/JU/kataster_belasteter_standorte_v1_5_JU_lv95.zip"
+      },
+      {
+        "out_dir": "LU",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/LU/kataster_belasteter_standorte_v1_5_LU_lv95.zip"
+      },
+      {
+        "out_dir": "NE",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/NE/kataster_belasteter_standorte_v1_5_NE_lv95.zip"
+      },
+      {
+        "out_dir": "NW",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/NW/kataster_belasteter_standorte_v1_5_NW_lv95.zip"
+      },
+      {
+        "out_dir": "OW",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/OW/kataster_belasteter_standorte_v1_5_OW_lv95.zip"
+      },
+      {
+        "out_dir": "SG",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/SG/kataster_belasteter_standorte_v1_5_SG_lv95.zip"
+      },
+      {
+        "out_dir": "SH",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/SH/kataster_belasteter_standorte_v1_5_SH_lv95.zip"
+      },
+      {
+        "out_dir": "SO",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/SO/kataster_belasteter_standorte_v1_5_SO_lv95.zip"
+      },
+      {
+        "out_dir": "SZ",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/SZ/kataster_belasteter_standorte_v1_5_SZ_lv95.zip"
+      },
+      {
+        "out_dir": "TG",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/TG/kataster_belasteter_standorte_v1_5_TG_lv95.zip"
+      },
+      {
+        "out_dir": "TI",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/TI/kataster_belasteter_standorte_v1_5_TI_lv95.zip"
+      },
+      {
+        "out_dir": "UR",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/UR/kataster_belasteter_standorte_v1_5_UR_lv95.zip"
+      },
+      {
+        "out_dir": "VD",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/VD/kataster_belasteter_standorte_v1_5_VD_lv95.zip"
+      },
+      {
+        "out_dir": "VS",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/VS/kataster_belasteter_standorte_v1_5_VS_lv95.zip"
+      },
+      {
+        "out_dir": "ZG",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/ZG/kataster_belasteter_standorte_v1_5_ZG_lv95.zip"
+      },
+      {
+        "out_dir": "ZH",
+        "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/ZH/kataster_belasteter_standorte_v1_5_ZH_lv95.zip"
+      }
 ]
 wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
 
