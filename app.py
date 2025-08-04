@@ -264,17 +264,18 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
 # --- Layout und Titel ---
 #----------------------------------------
 # --- Streamlit App Layout and Logic ---
-st.set_page_config(page_title="Datenabfrage Kataster der belasteten Standorte", layout="wide") # Set layout to wide
-st.title("Datenabfrage Kataster der belasteten Standorte")
+st.set_page_config(page_title="Belastete Standorte Data Aggregator", layout="wide") # Set layout to wide
+st.title("Aggregation of Contaminated Sites Data")
 
 # Define data sources
 xtf_urls = [
-    { "out_dir": 'Zivilflugplaetze', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
-    { "out_dir": 'Militaer', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
-    { "out_dir": 'oeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
+    { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
+    { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
+    { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
 ]
+wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
 
-st.sidebar.header("Datenquelle auswählen")
+st.sidebar.header("Select Data Sources")
 
 # Initialize session state variables if they don't exist
 if 'selected_xtf_sources' not in st.session_state:
@@ -287,13 +288,17 @@ if 'combined_df' not in st.session_state:
 # Create checkboxes for XTF sources
 selected_xtf_sources = []
 for source in xtf_urls:
-    checkbox_state = st.sidebar.checkbox(f"KBS: {source['out_dir'].capitalize()}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
+    checkbox_state = st.sidebar.checkbox(f"XTF: {source['out_dir'].capitalize()}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
     if checkbox_state:
         selected_xtf_sources.append(source)
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
 
+# Create checkbox for WFS source
+selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
+st.session_state['selected_wfs_source'] = selected_wfs_source
+
 # Create Fetch Data button
-fetch_button = st.sidebar.button("Daten abfragen")
+fetch_button = st.sidebar.button("Fetch Data")
 
 if fetch_button:
     st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
@@ -311,12 +316,33 @@ if fetch_button:
 # Display KPIs, Data Table, and Map if data is available
 if not st.session_state['combined_df'].empty:
     # Display KPIs
-    st.header("Anzahl Objekte")
+    st.header("Key Performance Indicators")
     total_objects = st.session_state['combined_df'].shape[0]
-    st.metric(label="Anzahl Objekte", value=total_objects)
+    st.metric(label="Total Objects", value=total_objects)
+    
+    st.subheader("Objects per Source")
+    
+    # Sicherstellen, dass 'combined_df' im Session State vorhanden ist
+    if 'combined_df' in st.session_state:
+        source_counts = st.session_state['combined_df']['Standorttyp'].value_counts()
+        st.write(source_counts)
+    
+        # Plotly-Balkendiagramm erstellen
+        fig = px.bar(
+            x=source_counts.index,
+            y=source_counts.values,
+            labels={'x': 'Standorttyp', 'y': 'Anzahl'},
+            title='Objects per Source'
+        )
+
+        st.plotly_chart(fig)
+    else:
+        st.warning("Die Daten 'combined_df' sind nicht im Session State verfügbar.")
+
+
 
     # Display the combined data table
-    st.header("Tabellenansicht")
+    st.header("Combined Data Table")
     st.dataframe(st.session_state['combined_df'])
 
 
