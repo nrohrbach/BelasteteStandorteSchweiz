@@ -260,6 +260,7 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
 
 
 # --- Layout und Titel ---
+#----------------------------------------
 st.set_page_config(page_title="Belastete Standorte Aggregator", layout="wide")
 st.title("Aggregation belasteter Standorte")
 
@@ -335,32 +336,46 @@ if not st.session_state['combined_df'].empty:
     st.dataframe(st.session_state['combined_df'])
 
     # --- Geometrie verarbeiten ---
-    def parse_geometry(geom):
-        try:
-            if isinstance(geom, dict) and geom.get("type") == "Point":
-                return Point(geom["coordinates"])
-        except Exception:
-            return None
+# --- Geometrie verarbeiten ---
+def parse_geometry(geom):
+    try:
+        if isinstance(geom, dict) and geom.get("type") == "Point":
+            return Point(geom["coordinates"])
+    except Exception:
         return None
+    return None
 
-    geometry = st.session_state['combined_df']['geom'].apply(parse_geometry)
-    gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
-    gdf_combined.set_crs(epsg=2056, inplace=True)
+geometry = st.session_state['combined_df']['geom'].apply(parse_geometry)
+gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
+
+# CRS setzen und transformieren
+try:
+    gdf_combined.set_crs(epsg=2056, inplace=True, allow_override=True)
     gdf_combined = gdf_combined.to_crs(epsg=4326)
+except Exception as e:
+    st.error(f"Fehler bei der Koordinatentransformation: {e}")
+    st.stop()
 
-    # --- Interaktive Karte ---
-    st.header("Interaktive Karte")
+# --- Interaktive Karte ---
+st.header("Interaktive Karte")
+
+if not gdf_combined.empty and gdf_combined.geometry.notnull().all():
     mittelpunkt = [gdf_combined.geometry.y.mean(), gdf_combined.geometry.x.mean()]
-    karte = folium.Map(location=mittelpunkt, zoom_start=10)
+else:
+    st.warning("Keine gültigen Geometrien vorhanden. Karte wird mit Standardmittelpunkt angezeigt.")
+    mittelpunkt = [47.0, 8.0]  # Fallback für die Schweiz
 
-    for _, row in gdf_combined.iterrows():
-        folium.Marker(
-            location=[row.geometry.y, row.geometry.x],
-            popup=row.get("name", "Kein Name"),
-            tooltip=row.get("quelle", "Quelle unbekannt")
-        ).add_to(karte)
+karte = folium.Map(location=mittelpunkt, zoom_start=10)
 
-    st_folium(karte, width=700, height=500)
+for _, row in gdf_combined.iterrows():
+    folium.Marker(
+        location=[row.geometry.y, row.geometry.x],
+        popup=row.get("name", "Kein Name"),
+        tooltip=row.get("quelle", "Quelle unbekannt")
+    ).add_to(karte)
+
+st_folium(karte, width=700, height=500)
+
 
     # --- Download ---
     st.download_button(
