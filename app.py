@@ -327,23 +327,7 @@ if not st.session_state['combined_df'].empty:
     st.header("Combined Data Table")
     st.dataframe(st.session_state['combined_df'])
 
-    # Integrate the interactive map visualization
-    st.header("Interactive Map")
-    # Create a GeoDataFrame from the combined_df
-    # Convert the dictionary representation of geometry to Point objects, handling potential None or invalid entries
-    geometry = st.session_state['combined_df']['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' else None)
-
-    # Create the GeoDataFrame, dropping rows where geometry could not be created
-    gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
-
-    # Set the coordinate reference system (CRS) to match the data (EPSG:2056)
-    gdf_combined.set_crs(epsg=2056, inplace=True)
-
-    # Display the GeoDataFrame interactively
-    # Use a placeholder to render the map
-    map_placeholder = st.empty()
-    with map_placeholder:
-         st.write(gdf_combined.explore())
+    
 
 
     # Add a download button for the combined data
