@@ -271,7 +271,8 @@ st.title("Daten der Kataster belasteter Standorte abfragen")
 xtf_urls = [
     { "out_dir": 'Zivilflugplaetze', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
     { "out_dir": 'Militaer', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
-    { "out_dir": 'OeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
+    { "out_dir": 'OeffentlicherVerkehr', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' },
+    { "out_dir": 'AG', "url": 'https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/AG/kataster_belasteter_standorte_v1_5_AG_lv95.zip' }
 ]
 wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
 
