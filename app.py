@@ -239,29 +239,38 @@ if st.sidebar.button("Daten abfragen"):
             st.write(combined_df)
 
             # Create GeoDataFrame for mapping
-            geometry = combined_df['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' and 'coordinates' in x and isinstance(x['coordinates'], (list, tuple)) and len(x['coordinates']) >= 2 and isinstance(x['coordinates'][0], (int, float)) and isinstance(x['coordinates'][1], (int, float)) else None)
-            gdf_combined = gpd.GeoDataFrame(combined_df, geometry=geometry).dropna(subset=['geometry'])
+            # Ensure 'geom' column exists before applying the function
+            if 'geom' in combined_df.columns:
+                geometry = combined_df['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' and isinstance(x['coordinates'], (list, tuple)) and len(x['coordinates']) >= 2 and isinstance(x['coordinates'][0], (int, float)) and isinstance(x['coordinates'][1], (int, float)) else None)
+                gdf_combined = gpd.GeoDataFrame(combined_df, geometry=geometry).dropna(subset=['geometry'])
 
-            # Set CRS for XTF data (assuming EPSG:2056) and reproject to WGS84 for WFS and mapping
-            # If WFS data is already in WGS84, set CRS directly
-            if not gdf_combined.empty:
-                 # Separate XTF and WFS dataframes to handle CRS
-                gdf_xtf = gdf_combined[gdf_combined['quelle'] != 'wfs'].set_crs(epsg=2056, allow_override=True)
-                gdf_wfs = gdf_combined[gdf_combined['quelle'] == 'wfs'].set_crs(epsg=4326, allow_override=True) # WFS assumed to be WGS84
+                # Set CRS for XTF data (assuming EPSG:2056) and reproject to WGS84 for WFS and mapping
+                # If WFS data is already in WGS84, set CRS directly
+                if not gdf_combined.empty:
+                     # Separate XTF and WFS dataframes to handle CRS
+                    gdf_xtf = gdf_combined[gdf_combined['quelle'] != 'wfs'].set_crs(epsg=2056, allow_override=True)
+                    gdf_wfs = gdf_combined[gdf_combined['quelle'] == 'wfs'].set_crs(epsg=4326, allow_override=True) # WFS assumed to be WGS84
 
-                # Reproject XTF to WGS84
-                gdf_xtf_wgs84 = gdf_xtf.to_crs(epsg=4326)
+                    # Reproject XTF to WGS84
+                    gdf_xtf_wgs84 = gdf_xtf.to_crs(epsg=4326)
 
-                # Combine reprojected XTF and WFS data
-                gdf_combined_wgs84 = pd.concat([gdf_xtf_wgs84, gdf_wfs], ignore_index=True)
+                    # Combine reprojected XTF and WFS data
+                    gdf_combined_wgs84 = pd.concat([gdf_xtf_wgs84, gdf_wfs], ignore_index=True)
 
-                st.subheader("Interaktive Karte")
-                # Ensure the GeoDataFrame is not empty before creating the map
-                if not gdf_combined_wgs84.empty:
-                    m = create_folium_map(gdf_combined_wgs84)
-                    folium_static(m)
+
+                    st.subheader("Interaktive Karte")
+                    # Ensure the GeoDataFrame is not empty before creating the map
+                    if not gdf_combined_wgs84.empty:
+                        m = create_folium_map(gdf_combined_wgs84)
+                        folium_static(m)
+                    else:
+                        st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
                 else:
-                    st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
+                     st.warning("Keine gültigen Geometriedaten gefunden, um eine Karte zu erstellen.")
+
+            else:
+                st.warning("Die Spalte 'geom' wurde in den kombinierten Daten nicht gefunden.")
+
 
             # Download link
             csv_file = combined_df.to_csv(index=False)
