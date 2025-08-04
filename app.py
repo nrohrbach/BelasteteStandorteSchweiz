@@ -294,8 +294,8 @@ for source in xtf_urls:
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
 
 # Create checkbox for WFS source
-selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
-st.session_state['selected_wfs_source'] = selected_wfs_source
+#selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
+#st.session_state['selected_wfs_source'] = selected_wfs_source
 
 # Create Fetch Data button
 fetch_button = st.sidebar.button("Fetch Data")
