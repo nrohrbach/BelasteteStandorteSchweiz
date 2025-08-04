@@ -10,6 +10,8 @@ from io import BytesIO
 import os
 from typing import Optional # Keep Optional as it's used in function signatures
 from xml.etree.ElementTree import Element # Keep Element as it's used in function signatures
+import plotly.express as px
+
 
 
 # --- Data Fetching and Processing Functions ---
@@ -317,10 +319,26 @@ if not st.session_state['combined_df'].empty:
     st.header("Key Performance Indicators")
     total_objects = st.session_state['combined_df'].shape[0]
     st.metric(label="Total Objects", value=total_objects)
-
+    
     st.subheader("Objects per Source")
-    source_counts = st.session_state['combined_df']['Standorttyp'].value_counts()
-    st.write(source_counts)
+    
+    # Sicherstellen, dass 'combined_df' im Session State vorhanden ist
+    if 'combined_df' in st.session_state:
+        source_counts = st.session_state['combined_df']['Standorttyp'].value_counts()
+        st.write(source_counts)
+    
+        # Plotly-Balkendiagramm erstellen
+        fig = px.bar(
+            x=source_counts.index,
+            y=source_counts.values,
+            labels={'x': 'Standorttyp', 'y': 'Anzahl'},
+            title='Objects per Source'
+        )
+    
+        st.plotly_chart(fig)
+    else:
+        st.warning("Die Daten 'combined_df' sind nicht im Session State verfügbar.")
+
 
 
     # Display the combined data table
