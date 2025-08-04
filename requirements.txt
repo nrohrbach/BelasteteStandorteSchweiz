@@ -8,3 +8,4 @@ owslib
 folium
 matplotlib
 mapclassify
+streamlit-folium
