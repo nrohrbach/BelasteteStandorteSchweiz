@@ -261,27 +261,29 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
 
 # --- Layout und Titel ---
 #----------------------------------------
-st.set_page_config(page_title="Belastete Standorte Aggregator", layout="wide")
-st.title("Aggregation belasteter Standorte")
+# --- Streamlit App Layout and Logic ---
+st.set_page_config(page_title="Belastete Standorte Data Aggregator", layout="wide") # Set layout to wide
+st.title("Aggregation of Contaminated Sites Data")
 
-# --- Datenquellen ---
+# Define data sources
 xtf_urls = [
     { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
     { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
     { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
 ]
-wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application/json"
+wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
 
-# --- Sidebar: Auswahl ---
-st.sidebar.header("Datenquellen auswählen")
+st.sidebar.header("Select Data Sources")
 
+# Initialize session state variables if they don't exist
 if 'selected_xtf_sources' not in st.session_state:
-    st.session_state['selected_xtf_sources'] = xtf_urls
+    st.session_state['selected_xtf_sources'] = xtf_urls # Default to selecting all XTF
 if 'selected_wfs_source' not in st.session_state:
-    st.session_state['selected_wfs_source'] = True
+    st.session_state['selected_wfs_source'] = True # Default to selecting WFS
 if 'combined_df' not in st.session_state:
     st.session_state['combined_df'] = pd.DataFrame()
 
+# Create checkboxes for XTF sources
 selected_xtf_sources = []
 for source in xtf_urls:
     checkbox_state = st.sidebar.checkbox(f"XTF: {source['out_dir'].capitalize()}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
@@ -289,99 +291,66 @@ for source in xtf_urls:
         selected_xtf_sources.append(source)
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
 
+# Create checkbox for WFS source
 selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
 st.session_state['selected_wfs_source'] = selected_wfs_source
 
-# --- Dummy-Datenabruf (ersetzen durch echte Logik) ---
-def fetch_data(xtf_sources, use_wfs, wfs_url):
-    data = {
-        "quelle": ["zivil", "mil", "oev", "wfs"],
-        "geom": [
-            {"type": "Point", "coordinates": [7.5, 47.5]},
-            {"type": "Point", "coordinates": [7.6, 47.6]},
-            {"type": "Point", "coordinates": [7.7, 47.7]},
-            {"type": "Point", "coordinates": [7.8, 47.8]}
-        ],
-        "name": ["Standort A", "Standort B", "Standort C", "Standort D"]
-    }
-    return pd.DataFrame(data)
-
-# --- Daten abrufen ---
-fetch_button = st.sidebar.button("Daten abrufen")
+# Create Fetch Data button
+fetch_button = st.sidebar.button("Fetch Data")
 
 if fetch_button:
-    st.session_state['combined_df'] = pd.DataFrame()
-    with st.spinner("Daten werden abgerufen..."):
+    st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
+    with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
             st.session_state['selected_xtf_sources'],
             st.session_state['selected_wfs_source'],
             wfs_url
-        )
+            )
     if not st.session_state['combined_df'].empty:
-        st.success("Daten erfolgreich abgerufen!")
+        st.success("Data fetching complete!")
     else:
-        st.warning("Es wurden keine Daten gefunden.")
+        st.warning("No data was fetched based on the selections.")
 
-# --- Anzeige der Daten ---
+# Display KPIs, Data Table, and Map if data is available
 if not st.session_state['combined_df'].empty:
-    st.header("Kennzahlen")
+    # Display KPIs
+    st.header("Key Performance Indicators")
     total_objects = st.session_state['combined_df'].shape[0]
-    st.metric(label="Anzahl Objekte", value=total_objects)
+    st.metric(label="Total Objects", value=total_objects)
 
-    st.subheader("Objekte pro Quelle")
+    st.subheader("Objects per Source")
     source_counts = st.session_state['combined_df']['quelle'].value_counts()
     st.write(source_counts)
 
-    st.header("Datenübersicht")
+
+    # Display the combined data table
+    st.header("Combined Data Table")
     st.dataframe(st.session_state['combined_df'])
 
-    # --- Geometrie verarbeiten ---
-# --- Geometrie verarbeiten ---
-def parse_geometry(geom):
-    try:
-        if isinstance(geom, dict) and geom.get("type") == "Point":
-            return Point(geom["coordinates"])
-    except Exception:
-        return None
-    return None
+    # Integrate the interactive map visualization
+    st.header("Interactive Map")
+    # Create a GeoDataFrame from the combined_df
+    # Convert the dictionary representation of geometry to Point objects, handling potential None or invalid entries
+    geometry = st.session_state['combined_df']['geom'].apply(lambda x: Point(x['coordinates']) if isinstance(x, dict) and 'coordinates' in x and x['type'] == 'Point' else None)
 
-geometry = st.session_state['combined_df']['geom'].apply(parse_geometry)
-gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
+    # Create the GeoDataFrame, dropping rows where geometry could not be created
+    gdf_combined = gpd.GeoDataFrame(st.session_state['combined_df'], geometry=geometry).dropna(subset=['geometry'])
 
-# CRS setzen und transformieren
-try:
-    gdf_combined.set_crs(epsg=2056, inplace=True, allow_override=True)
-    gdf_combined = gdf_combined.to_crs(epsg=4326)
-except Exception as e:
-    st.error(f"Fehler bei der Koordinatentransformation: {e}")
-    st.stop()
+    # Set the coordinate reference system (CRS) to match the data (EPSG:2056)
+    gdf_combined.set_crs(epsg=2056, inplace=True)
 
-# --- Interaktive Karte ---
-st.header("Interaktive Karte")
-
-if not gdf_combined.empty and gdf_combined.geometry.notnull().all():
-    mittelpunkt = [gdf_combined.geometry.y.mean(), gdf_combined.geometry.x.mean()]
-else:
-    st.warning("Keine gültigen Geometrien vorhanden. Karte wird mit Standardmittelpunkt angezeigt.")
-    mittelpunkt = [47.0, 8.0]  # Fallback für die Schweiz
-
-karte = folium.Map(location=mittelpunkt, zoom_start=10)
-
-for _, row in gdf_combined.iterrows():
-    folium.Marker(
-        location=[row.geometry.y, row.geometry.x],
-        popup=row.get("name", "Kein Name"),
-        tooltip=row.get("quelle", "Quelle unbekannt")
-    ).add_to(karte)
-
-st_folium(karte, width=700, height=500)
+    # Display the GeoDataFrame interactively
+    # Use a placeholder to render the map
+    map_placeholder = st.empty()
+    with map_placeholder:
+         st.write(gdf_combined.explore())
 
 
-    # --- Download ---
+    # Add a download button for the combined data
     st.download_button(
-        label="Daten als CSV herunterladen",
-        data=st.session_state['combined_df'].to_csv(index=False).encode('utf-8'),
-        file_name="belastete_standorte.csv",
+        label="Download Data as CSV",
+        data=st.session_state['combined_df'].to_csv(index=False).encode('utf-8'), # Encode to utf-8
+        file_name="combined_data.csv",
         mime="text/csv"
     )
 
