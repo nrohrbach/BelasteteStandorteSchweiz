@@ -324,7 +324,7 @@ if not st.session_state['combined_df'].empty:
 
     # Add a download button for the combined data
     st.download_button(
-        label="Download Data as CSV",
+        label="Daten als CSV herunterladen",
         data=st.session_state['combined_df'].to_csv(index=False).encode('utf-8'), # Encode to utf-8
         file_name="combined_data.csv",
         mime="text/csv"
