@@ -13,10 +13,10 @@ from owslib.wfs import WebFeatureService
 from streamlit_folium import folium_static
 
 # Define the URLs for the XTF files and the WFS service
-urls = [
-    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/oev_belastetestandorte/oev_belastetestandorte_xtf.zip", "out_dir": "oev_belastetestandorte"},
-    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bag_belastetestandorte/bag_belastetestandorte_xtf.zip", "out_dir": "bag_belastetestandorte"},
-    {"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bafu_belastetestandorte/bafu_belastetestandorte_xtf.zip", "out_dir": "bafu_belastetestandorte"},
+xtf_urls = [
+    { "out_dir": 'zivil', "url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip' },
+    { "out_dir": 'mil', "url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip' },
+    { "out_dir": 'oev', "url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip' }
 ]
 wfs_url = "https://geodienste.ch/db/kataster_belasteter_standorte_v1_5_0/deu?"
 
@@ -151,12 +151,12 @@ st.sidebar.header("Datenquellen auswählen")
 
 # Checkboxes for source selection
 selected_sources = []
-if st.sidebar.checkbox("XTF: oev_belastetestandorte"):
-    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/oev_belastetestandorte/oev_belastetestandorte_xtf.zip", "out_dir": "oev_belastetestandorte"})
-if st.sidebar.checkbox("XTF: bag_belastetestandorte"):
-    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bag_belastetestandorte/bag_belastetestandorte_xtf.zip", "out_dir": "bag_belastetestandorte"})
-if st.sidebar.checkbox("XTF: bafu_belastetestandorte"):
-    selected_sources.append({"url": "https://www.uvek-gis.admin.ch/BFE/geoservice/xtf/bafu_belastetestandorte/bafu_belastetestestandorte_xtf.zip", "out_dir": "bafu_belastetestandorte"})
+if st.sidebar.checkbox("XTF: zivil"):
+    selected_sources.append({"url": 'https://data.geo.admin.ch/ch.bazl.kataster-belasteter-standorte-zivilflugplaetze/data.zip', "out_dir": 'zivil'})
+if st.sidebar.checkbox("XTF: mil"):
+    selected_sources.append({"url": 'https://data.geo.admin.ch/ch.vbs.kataster-belasteter-standorte-militaer/data.zip', "out_dir": 'mil'})
+if st.sidebar.checkbox("XTF: oev"):
+    selected_sources.append({"url": 'https://data.geo.admin.ch/ch.bav.kataster-belasteter-standorte-oev/data.zip', "out_dir": 'oev'})
 if st.sidebar.checkbox("WFS: kataster_belasteter_standorte_v1_5_0"):
      selected_sources.append({"url": wfs_url, "out_dir": "wfs"})
 
