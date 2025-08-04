@@ -299,7 +299,7 @@ if fetch_button:
     st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
     with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
-            st.session_state['selected_xtf_sources'],
+            st.session_state['selected_xtf_sources']
             )
     if not st.session_state['combined_df'].empty:
         st.success("Data fetching complete!")
