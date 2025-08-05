@@ -457,25 +457,6 @@ if not st.session_state['combined_df'].empty:
             unsafe_allow_html=True
         )
 
-    
-    # Kreisdiagramm erstellen
-    fig, ax = plt.subplots()
-    ax.pie(
-        groupedstatus['Anzahl'],
-        labels=groupedstatus['StandorttypStatus'],
-        autopct='%1.1f%%',
-        startangle=90
-    )
-    ax.axis('equal')  # Kreis statt Ellipse
-    
-    # In Streamlit anzeigen
-    st.subheader("Verteilung nach StandorttypStatus")
-    st.pyplot(fig)
-
-
-
-
-
     # Display the combined data table
     st.header("Tabellenansicht")
     st.dataframe(st.session_state['combined_df'])
