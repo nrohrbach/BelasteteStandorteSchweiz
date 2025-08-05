@@ -240,6 +240,7 @@ def fetch_data(selected_xtf_sources):
 # --- Streamlit App Layout and Logic ---
 st.set_page_config(page_title="Daten der Kataster belasteter Standorte abfragen", layout="wide") # Set layout to wide
 st.title("Daten der Kataster belasteter Standorte abfragen")
+st.text("Mit dieser Applikation können die aktuellen Daten der verschiedenen KBS-Publikationen gelesen werden. Die Daten werden dabei direkt aus den publizierten INTERLIS-Dateien gelesen.")
 
 # Define data sources
 xtf_urls = [
@@ -398,6 +399,18 @@ if not st.session_state['combined_df'].empty:
     st.header("Anzahl Objekte")
     total_objects = st.session_state['combined_df'].shape[0]
     st.metric(label="Anzahl Objekte", value=total_objects)
+
+    # Gruppieren nach 'Standorttyp' und zählen
+    grouped = st.session_state['combined_df'].groupby('Standorttyp').size().reset_index(name='Anzahl')
+
+    # Badges anzeigen
+    st.subheader("Objekte nach Standorttyp")
+    for _, row in grouped.iterrows():
+        st.markdown(
+            f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
+            f"🔹 {row['Standorttyp']}: {row['Anzahl']}</span>",
+            unsafe_allow_html=True
+        )
 
 
 
