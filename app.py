@@ -10,9 +10,6 @@ from io import BytesIO
 import os
 from typing import Optional # Keep Optional as it's used in function signatures
 from xml.etree.ElementTree import Element # Keep Element as it's used in function signatures
-import plotly.express as px
-
-
 
 # --- Data Fetching and Processing Functions ---
 def get_zip(from_url: str, output_dir: str):
@@ -184,7 +181,7 @@ def get_shp_pt(path: str) -> pd.DataFrame:
         return pd.DataFrame() # Return empty DataFrame on error
 
 
-def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
+def fetch_data(selected_xtf_sources):
     """Fetches data from selected sources and combines them into a single DataFrame."""
     all_dataframes = []
 
@@ -211,30 +208,7 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
             else:
                 st.warning(f"No .xtf file found for source: {out_dir}")
         except Exception as e:
-            st.error(f"Error processing data from {out_dir}: {e}")
-
-
-    if selected_wfs_source:
-        st.info(f"Fetching data from WFS source: Kanton Basel-Landschaft")
-        try:
-            # Fetch WFS data - assuming get_shp_pt can handle the URL directly or needs a local file path
-            # For this example, fetch GeoJSON and save to a temp file
-            response = requests.get(wfs_url, timeout=30) # Added timeout
-            response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-
-            temp_geojson_path = "temp_wfs.geojson"
-            with open(temp_geojson_path, "wb") as f:
-                f.write(response.content)
-
-            df_wfs = get_shp_pt(temp_geojson_path)
-            df_wfs['quelle'] = 'wfs' # Add source identifier
-            all_dataframes.append(df_wfs)
-            os.remove(temp_geojson_path) # Clean up temp file
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error fetching data from WFS: {e}")
-        except Exception as e:
-             st.error(f"Error processing data from WFS: {e}")
-
+            st.error(f"Error processing data from {out_dir}: {e}")   
 
     if all_dataframes:
         # Harmonize columns before concatenating
@@ -266,6 +240,7 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
 # --- Streamlit App Layout and Logic ---
 st.set_page_config(page_title="Daten der Kataster belasteter Standorte abfragen", layout="wide") # Set layout to wide
 st.title("Daten der Kataster belasteter Standorte abfragen")
+st.text("Mit dieser Applikation können die aktuellen Daten der verschiedenen KBS-Publikationen gelesen werden. Die Daten werden dabei direkt aus den publizierten INTERLIS-Dateien gelesen.")
 
 # Define data sources
 xtf_urls = [
@@ -373,29 +348,36 @@ xtf_urls = [
         "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/ZH/kataster_belasteter_standorte_v1_5_ZH_lv95.zip"
       }
 ]
-wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
+
 
 st.sidebar.header("Select Data Sources")
 
 # Initialize session state variables if they don't exist
 if 'selected_xtf_sources' not in st.session_state:
     st.session_state['selected_xtf_sources'] = xtf_urls # Default to selecting all XTF
-if 'selected_wfs_source' not in st.session_state:
-    st.session_state['selected_wfs_source'] = True # Default to selecting WFS
 if 'combined_df' not in st.session_state:
     st.session_state['combined_df'] = pd.DataFrame()
+if 'select_all_xtf' not in st.session_state:
+    st.session_state['select_all_xtf'] = True  # Default to all selected
+
+# Checkbox to select/deselect all
+st.sidebar.markdown("### Auswahloptionen")
+select_all = st.sidebar.checkbox("Alle auswählen/abwählen", value=st.session_state['select_all_xtf'])
 
 # Create checkboxes for XTF sources
 selected_xtf_sources = []
 for source in xtf_urls:
-    checkbox_state = st.sidebar.checkbox(f"KBS: {source['out_dir']}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
+    checkbox_state = st.sidebar.checkbox(
+        f"KBS: {source['out_dir']}",
+        value=select_all,
+        key=f"xtf_{source['out_dir']}"
+    )
     if checkbox_state:
         selected_xtf_sources.append(source)
-st.session_state['selected_xtf_sources'] = selected_xtf_sources
 
-# Create checkbox for WFS source
-#selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
-#st.session_state['selected_wfs_source'] = selected_wfs_source
+# Update session state
+st.session_state['selected_xtf_sources'] = selected_xtf_sources
+st.session_state['select_all_xtf'] = select_all
 
 # Create Fetch Data button
 fetch_button = st.sidebar.button("Daten abfragen")
@@ -404,9 +386,7 @@ if fetch_button:
     st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
     with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
-            st.session_state['selected_xtf_sources'],
-            st.session_state['selected_wfs_source'],
-            wfs_url
+            st.session_state['selected_xtf_sources']
             )
     if not st.session_state['combined_df'].empty:
         st.success("Data fetching complete!")
@@ -415,14 +395,65 @@ if fetch_button:
 
 # Display KPIs, Data Table, and Map if data is available
 if not st.session_state['combined_df'].empty:
+
+    # Mapping auf StaoTyp 
+    # Mapping-Tabelle: Kürzel → ausgeschriebene Namen
+    standorttyp_labels = {
+        "StaoTyp1": "Ablagerungsstandort",
+        "StaoTyp2": "Betriebsstandort (ohne Schiessanlagen oder Schiessplätze)",
+        "StaoTyp3": "Unfallstandort",
+        "StaoTyp4": "Schiessanlage oder Schiessplatz"
+    }
+    status_labels = {
+        "StatusAltlV1": "Belastet, keine schädlichen oder lästigen Einwirkungen zu erwarten",
+        "StatusAltlV2": "Belastet, untersuchungsbedürftig",
+        "StatusAltlV3": "Belastet, weder überwachungs- noch sanierungsbedürftig",
+        "StatusAltlV4": "Belastet, überwachungsbedürftig",
+        "StatusAltlV5": "Belastet, sanierungsbedürftig",
+        "StatusAltlV6": "Belastet, Untersuchungsbedürftigkeit noch nicht definiert"
+    }
+
+    
+    combined_df = st.session_state['combined_df']
+
+    # Kürzel ersetzen
+    combined_df['StandorttypLabel'] = combined_df['Standorttyp'].map(standorttyp_labels)
+    combined_df['StandorttypStatus'] = combined_df['StatusAltlV'].map(status_labels)
+
+    
+
+
+
+
+    
     # Display KPIs
     st.header("Anzahl Objekte")
     total_objects = st.session_state['combined_df'].shape[0]
     st.metric(label="Anzahl Objekte", value=total_objects)
 
+    # Gruppieren nach 'Standorttyp' und zählen
+    grouped = st.session_state['combined_df'].groupby('StandorttypLabel').size().reset_index(name='Anzahl')
 
+    # Badges anzeigen
+    st.subheader("Objekte nach Standorttyp")
+    for _, row in grouped.iterrows():
+        st.markdown(
+            f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
+            f" {row['StandorttypLabel']}: {row['Anzahl']}</span>",
+            unsafe_allow_html=True
+        )
+        
+    # Gruppieren nach 'Status' und zählen
+    groupedstatus = st.session_state['combined_df'].groupby('StandorttypStatus').size().reset_index(name='Anzahl')
 
-
+    # Badges anzeigen
+    st.subheader("Objekte nach Status")
+    for _, row in groupedstatus.iterrows():
+        st.markdown(
+            f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
+            f" {row['StandorttypStatus']}: {row['Anzahl']}</span>",
+            unsafe_allow_html=True
+        )
 
     # Display the combined data table
     st.header("Tabellenansicht")
