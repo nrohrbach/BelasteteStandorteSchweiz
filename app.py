@@ -356,6 +356,12 @@ if 'selected_xtf_sources' not in st.session_state:
     st.session_state['selected_xtf_sources'] = xtf_urls # Default to selecting all XTF
 if 'combined_df' not in st.session_state:
     st.session_state['combined_df'] = pd.DataFrame()
+if 'select_all_xtf' not in st.session_state:
+    st.session_state['select_all_xtf'] = True  # Default to all selected
+
+# Checkbox to select/deselect all
+st.sidebar.markdown("### Auswahloptionen")
+select_all = st.sidebar.checkbox("Alle auswählen/abwählen", value=st.session_state['select_all_xtf'])
 
 # Create checkboxes for XTF sources
 selected_xtf_sources = []
