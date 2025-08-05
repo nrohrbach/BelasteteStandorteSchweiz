@@ -10,9 +10,6 @@ from io import BytesIO
 import os
 from typing import Optional # Keep Optional as it's used in function signatures
 from xml.etree.ElementTree import Element # Keep Element as it's used in function signatures
-import plotly.express as px
-
-
 
 # --- Data Fetching and Processing Functions ---
 def get_zip(from_url: str, output_dir: str):
