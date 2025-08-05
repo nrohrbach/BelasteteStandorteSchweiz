@@ -448,7 +448,7 @@ if not st.session_state['combined_df'].empty:
 
     # Badges anzeigen
     st.subheader("Objekte nach Status")
-    for _, row in grouped.iterrows():
+    for _, row in groupedstatus.iterrows():
         st.markdown(
             f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
             f" {row['StandorttypStatus']}: {row['Anzahl']}</span>",
