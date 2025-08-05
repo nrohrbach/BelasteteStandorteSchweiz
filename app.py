@@ -347,15 +347,13 @@ xtf_urls = [
         "url": "https://geodienste.ch/downloads/interlis/kataster_belasteter_standorte/ZH/kataster_belasteter_standorte_v1_5_ZH_lv95.zip"
       }
 ]
-wfs_url = "https://geowfs.bl.ch/wfs/kbs?service=WFS&version=1.1.0&request=GetFeature&typename=kbs:belastete_standorte&outputFormat=application%2Fjson"
+
 
 st.sidebar.header("Select Data Sources")
 
 # Initialize session state variables if they don't exist
 if 'selected_xtf_sources' not in st.session_state:
     st.session_state['selected_xtf_sources'] = xtf_urls # Default to selecting all XTF
-if 'selected_wfs_source' not in st.session_state:
-    st.session_state['selected_wfs_source'] = True # Default to selecting WFS
 if 'combined_df' not in st.session_state:
     st.session_state['combined_df'] = pd.DataFrame()
 
@@ -367,10 +365,6 @@ for source in xtf_urls:
         selected_xtf_sources.append(source)
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
 
-# Create checkbox for WFS source
-#selected_wfs_source = st.sidebar.checkbox("WFS: Kanton Basel-Landschaft", value=st.session_state['selected_wfs_source'], key="wfs_bl")
-#st.session_state['selected_wfs_source'] = selected_wfs_source
-
 # Create Fetch Data button
 fetch_button = st.sidebar.button("Daten abfragen")
 
@@ -378,9 +372,7 @@ if fetch_button:
     st.session_state['combined_df'] = pd.DataFrame() # Clear previous data on fetch
     with st.spinner("Fetching data..."):
         st.session_state['combined_df'] = fetch_data(
-            st.session_state['selected_xtf_sources'],
-            st.session_state['selected_wfs_source'],
-            wfs_url
+            st.session_state['selected_xtf_sources']
             )
     if not st.session_state['combined_df'].empty:
         st.success("Data fetching complete!")
