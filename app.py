@@ -181,7 +181,7 @@ def get_shp_pt(path: str) -> pd.DataFrame:
         return pd.DataFrame() # Return empty DataFrame on error
 
 
-def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
+def fetch_data(selected_xtf_sources):
     """Fetches data from selected sources and combines them into a single DataFrame."""
     all_dataframes = []
 
@@ -208,30 +208,7 @@ def fetch_data(selected_xtf_sources, selected_wfs_source, wfs_url):
             else:
                 st.warning(f"No .xtf file found for source: {out_dir}")
         except Exception as e:
-            st.error(f"Error processing data from {out_dir}: {e}")
-
-
-    if selected_wfs_source:
-        st.info(f"Fetching data from WFS source: Kanton Basel-Landschaft")
-        try:
-            # Fetch WFS data - assuming get_shp_pt can handle the URL directly or needs a local file path
-            # For this example, fetch GeoJSON and save to a temp file
-            response = requests.get(wfs_url, timeout=30) # Added timeout
-            response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-
-            temp_geojson_path = "temp_wfs.geojson"
-            with open(temp_geojson_path, "wb") as f:
-                f.write(response.content)
-
-            df_wfs = get_shp_pt(temp_geojson_path)
-            df_wfs['quelle'] = 'wfs' # Add source identifier
-            all_dataframes.append(df_wfs)
-            os.remove(temp_geojson_path) # Clean up temp file
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error fetching data from WFS: {e}")
-        except Exception as e:
-             st.error(f"Error processing data from WFS: {e}")
-
+            st.error(f"Error processing data from {out_dir}: {e}")   
 
     if all_dataframes:
         # Harmonize columns before concatenating
