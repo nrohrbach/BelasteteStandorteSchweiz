@@ -395,6 +395,26 @@ if fetch_button:
 
 # Display KPIs, Data Table, and Map if data is available
 if not st.session_state['combined_df'].empty:
+
+    # Mapping auf StaoTyp 
+    # Mapping-Tabelle: Kürzel → ausgeschriebene Namen
+    standorttyp_labels = {
+        "StaoTyp1": "Ablagerungsstandort",
+        "StaoTyp2": "Betriebsstandort (ohne Schiessanlagen oder Schiessplätze)",
+        "StaoTyp3": "Unfallstandort",
+        "StaoTyp4": "Schiessanlage oder Schiessplatz"
+    }
+    
+    # Kürzel ersetzen
+    combined_df['Standorttyp'] = combined_df['Standorttyp'].map(standorttyp_labels)
+
+
+    
+
+
+
+
+    
     # Display KPIs
     st.header("Anzahl Objekte")
     total_objects = st.session_state['combined_df'].shape[0]
