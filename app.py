@@ -406,7 +406,7 @@ if not st.session_state['combined_df'].empty:
     }
     
     # Kürzel ersetzen
-    combined_df['Standorttyp'] = combined_df['Standorttyp'].map(standorttyp_labels)
+    combined_df['StandorttypLabel'] = combined_df['Standorttyp'].map(standorttyp_labels)
 
 
     
@@ -421,14 +421,14 @@ if not st.session_state['combined_df'].empty:
     st.metric(label="Anzahl Objekte", value=total_objects)
 
     # Gruppieren nach 'Standorttyp' und zählen
-    grouped = st.session_state['combined_df'].groupby('Standorttyp').size().reset_index(name='Anzahl')
+    grouped = st.session_state['combined_df'].groupby('StandorttypLabel').size().reset_index(name='Anzahl')
 
     # Badges anzeigen
     st.subheader("Objekte nach Standorttyp")
     for _, row in grouped.iterrows():
         st.markdown(
             f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
-            f"🔹 {row['Standorttyp']}: {row['Anzahl']}</span>",
+            f" {row['StandorttypLabel']}: {row['Anzahl']}</span>",
             unsafe_allow_html=True
         )
 
