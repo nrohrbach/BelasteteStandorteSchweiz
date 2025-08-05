@@ -366,10 +366,17 @@ select_all = st.sidebar.checkbox("Alle auswählen/abwählen", value=st.session_s
 # Create checkboxes for XTF sources
 selected_xtf_sources = []
 for source in xtf_urls:
-    checkbox_state = st.sidebar.checkbox(f"KBS: {source['out_dir']}", value=source in st.session_state['selected_xtf_sources'], key=f"xtf_{source['out_dir']}")
+    checkbox_state = st.sidebar.checkbox(
+        f"KBS: {source['out_dir']}",
+        value=select_all,
+        key=f"xtf_{source['out_dir']}"
+    )
     if checkbox_state:
         selected_xtf_sources.append(source)
+
+# Update session state
 st.session_state['selected_xtf_sources'] = selected_xtf_sources
+st.session_state['select_all_xtf'] = select_all
 
 # Create Fetch Data button
 fetch_button = st.sidebar.button("Daten abfragen")
