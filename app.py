@@ -404,13 +404,21 @@ if not st.session_state['combined_df'].empty:
         "StaoTyp3": "Unfallstandort",
         "StaoTyp4": "Schiessanlage oder Schiessplatz"
     }
+    status_labels = {
+        "StatusAltlV1": "Belastet, keine schädlichen oder lästigen Einwirkungen zu erwarten",
+        "StatusAltlV2": "Belastet, untersuchungsbedürftig",
+        "StatusAltlV3": "Belastet, weder überwachungs- noch sanierungsbedürftig",
+        "StatusAltlV4": "Belastet, überwachungsbedürftig",
+        "StatusAltlV5": "Belastet, sanierungsbedürftig",
+        "StatusAltlV6": "Belastet, Untersuchungsbedürftigkeit noch nicht definiert"
+    }
 
     
     combined_df = st.session_state['combined_df']
 
     # Kürzel ersetzen
     combined_df['StandorttypLabel'] = combined_df['Standorttyp'].map(standorttyp_labels)
-
+    combined_df['StandorttypStatus'] = combined_df['StatusAltlV'].map(status_labels)
 
     
 
@@ -434,7 +442,18 @@ if not st.session_state['combined_df'].empty:
             f" {row['StandorttypLabel']}: {row['Anzahl']}</span>",
             unsafe_allow_html=True
         )
+        
+    # Gruppieren nach 'Status' und zählen
+    groupedstatus = st.session_state['combined_df'].groupby('StandorttypStatus').size().reset_index(name='Anzahl')
 
+    # Badges anzeigen
+    st.subheader("Objekte nach Status")
+    for _, row in grouped.iterrows():
+        st.markdown(
+            f"<span style='background-color:#e0e0e0; padding:6px 12px; border-radius:12px; margin-right:8px; display:inline-block;'>"
+            f" {row['StandorttypStatus']}: {row['Anzahl']}</span>",
+            unsafe_allow_html=True
+        )
 
 
 
