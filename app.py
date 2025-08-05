@@ -404,7 +404,10 @@ if not st.session_state['combined_df'].empty:
         "StaoTyp3": "Unfallstandort",
         "StaoTyp4": "Schiessanlage oder Schiessplatz"
     }
+
     
+    combined_df = st.session_state['combined_df']
+
     # Kürzel ersetzen
     combined_df['StandorttypLabel'] = combined_df['Standorttyp'].map(standorttyp_labels)
 
